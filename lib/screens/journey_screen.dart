@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:math' as math;
 import '../models/types.dart';
 import '../theme/app_theme.dart';
 import '../services/storage_service.dart';
@@ -15,18 +14,16 @@ class JourneyScreen extends StatefulWidget {
 
 class _JourneyScreenState extends State<JourneyScreen>
     with TickerProviderStateMixin {
-  int _currentDhikrIndex = 0;
+  int _currentIndex = 0;
   int _count = 0;
   int _customTarget = 0;
-  bool _showingCompletion = false;
   bool _journeyComplete = false;
   int _totalPoints = 0;
+  bool _showingMini = false;
 
   late AnimationController _pulseCtrl;
-  late AnimationController _slideCtrl;
   late AnimationController _celebrateCtrl;
   late Animation<double> _pulseAnim;
-  late Animation<Offset> _slideAnim;
   late Animation<double> _celebrateAnim;
 
   @override
@@ -41,16 +38,9 @@ class _JourneyScreenState extends State<JourneyScreen>
     _pulseAnim = Tween<double>(begin: 1.0, end: 0.88)
         .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
 
-    _slideCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-    _slideAnim = Tween<Offset>(begin: Offset.zero, end: const Offset(-1.5, 0))
-        .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeInOut));
-
     _celebrateCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 500),
     );
     _celebrateAnim = CurvedAnimation(parent: _celebrateCtrl, curve: Curves.elasticOut);
   }
@@ -58,75 +48,90 @@ class _JourneyScreenState extends State<JourneyScreen>
   @override
   void dispose() {
     _pulseCtrl.dispose();
-    _slideCtrl.dispose();
     _celebrateCtrl.dispose();
     super.dispose();
   }
 
-  DhikrItem get _currentDhikr => widget.category.adhkar[_currentDhikrIndex];
-  int get _totalDhikr => widget.category.adhkar.length;
-  double get _journeyProgress => (_currentDhikrIndex + (_count / _customTarget).clamp(0, 1)) / _totalDhikr;
+  DhikrItem get _current => widget.category.adhkar[_currentIndex];
+  int get _total => widget.category.adhkar.length;
+  double get _journeyProgress =>
+      (_currentIndex + (_count / _customTarget).clamp(0.0, 1.0)) / _total;
 
   Future<void> _onTap() async {
+    if (_showingMini) return;
     HapticFeedback.lightImpact();
     _pulseCtrl.forward().then((_) => _pulseCtrl.reverse());
 
     final newCount = _count + 1;
-
     await StorageService.incrementTodayCount();
     await StorageService.incrementTotalCount();
 
     if (newCount >= _customTarget) {
-      // اكتمل الذكر الحالي
-      _celebrateCtrl.forward(from: 0);
+      // اكتمل هذا الذكر
+      HapticFeedback.mediumImpact();
       _totalPoints += _customTarget;
+      _celebrateCtrl.forward(from: 0);
       setState(() {
         _count = _customTarget;
-        _showingCompletion = true;
+        _showingMini = true;
       });
     } else {
       setState(() => _count = newCount);
     }
   }
 
-  Future<void> _nextDhikr() async {
-    if (_currentDhikrIndex >= _totalDhikr - 1) {
-      // انتهت الرحلة كلها
+  Future<void> _goNext() async {
+    if (_currentIndex >= _total - 1) {
+      // انتهت الرحلة
       await StorageService.updateStreak();
-      setState(() {
-        _journeyComplete = true;
-        _showingCompletion = false;
-      });
+      setState(() => _journeyComplete = true);
     } else {
-      // انتقل للذكر التالي
-      await _slideCtrl.forward();
+      // الذكر التالي
       setState(() {
-        _currentDhikrIndex++;
+        _currentIndex++;
         _count = 0;
-        _customTarget = widget.category.adhkar[_currentDhikrIndex].count;
-        _showingCompletion = false;
+        _customTarget = widget.category.adhkar[_currentIndex].count;
+        _showingMini = false;
       });
-      _slideCtrl.reset();
     }
   }
 
-  void _showCustomCountDialog() {
+  void _showChangeCountDialog() {
     final ctrl = TextEditingController(text: '$_customTarget');
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppTheme.cardColor,
-        title: const Text('تحديد العداد', style: TextStyle(color: AppTheme.textPrimary)),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: TextInputType.number,
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 24),
-          decoration: const InputDecoration(
-            enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: AppTheme.accentGreen),
+        title: const Text('تغيير العداد',
+            style: TextStyle(color: AppTheme.textPrimary)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: ctrl,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  color: AppTheme.textPrimary, fontSize: 28, fontWeight: FontWeight.bold),
+              decoration: const InputDecoration(
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: AppTheme.accentGreen, width: 2),
+                ),
+              ),
             ),
-          ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              children: [_current.count, 33, 50, 100].map((n) =>
+                ActionChip(
+                  label: Text('$n', style: const TextStyle(color: AppTheme.accentGreen)),
+                  backgroundColor: AppTheme.accentGreen.withOpacity(0.1),
+                  side: BorderSide(color: AppTheme.accentGreen.withOpacity(0.4)),
+                  onPressed: () => ctrl.text = '$n',
+                ),
+              ).toList(),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -140,12 +145,12 @@ class _JourneyScreenState extends State<JourneyScreen>
                 setState(() {
                   _customTarget = val;
                   _count = 0;
-                  _showingCompletion = false;
+                  _showingMini = false;
                 });
               }
               Navigator.pop(context);
             },
-            child: const Text('حفظ'),
+            child: const Text('تطبيق'),
           ),
         ],
       ),
@@ -154,74 +159,60 @@ class _JourneyScreenState extends State<JourneyScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (_journeyComplete) return _JourneyCompleteScreen(
-      categoryName: widget.category.name,
-      totalPoints: _totalPoints,
-      totalDhikr: _totalDhikr,
-      onRestart: () => setState(() {
-        _currentDhikrIndex = 0;
-        _count = 0;
-        _customTarget = widget.category.adhkar[0].count;
-        _journeyComplete = false;
-        _totalPoints = 0;
-      }),
-    );
+    if (_journeyComplete) {
+      return _JourneyComplete(
+        categoryName: widget.category.name,
+        categoryIcon: widget.category.icon,
+        totalPoints: _totalPoints,
+        totalDhikr: _total,
+        onRestart: () => setState(() {
+          _currentIndex = 0;
+          _count = 0;
+          _customTarget = widget.category.adhkar[0].count;
+          _journeyComplete = false;
+          _totalPoints = 0;
+          _showingMini = false;
+        }),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppTheme.bgColor,
       appBar: AppBar(
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(widget.category.icon, style: const TextStyle(fontSize: 18)),
-            const SizedBox(width: 8),
-            Text(widget.category.name),
-          ],
-        ),
+        title: Text('${widget.category.icon} ${widget.category.name}'),
         actions: [
           IconButton(
             icon: const Icon(Icons.tune, color: AppTheme.accentGold),
-            onPressed: _showCustomCountDialog,
-            tooltip: 'تحديد العداد',
+            onPressed: _showChangeCountDialog,
           ),
         ],
       ),
       body: Column(
         children: [
-          // شريط تقدم الرحلة الكاملة
-          _JourneyProgressBar(
-            progress: _journeyProgress,
-            current: _currentDhikrIndex + 1,
-            total: _totalDhikr,
-          ),
+          // شريط تقدم الرحلة
+          _ProgressBar(progress: _journeyProgress, current: _currentIndex + 1, total: _total),
 
           // مؤشرات الخطوات
-          _StepsIndicator(
-            total: _totalDhikr,
-            current: _currentDhikrIndex,
-            completed: List.generate(_currentDhikrIndex, (i) => i),
-          ),
+          _Steps(total: _total, current: _currentIndex),
 
+          // المحتوى
           Expanded(
-            child: _showingCompletion
-                ? _DhikrCompletionCard(
-                    dhikr: _currentDhikr,
+            child: _showingMini
+                ? _MiniCompletion(
+                    dhikr: _current,
                     points: _customTarget,
                     celebrateAnim: _celebrateAnim,
-                    isLast: _currentDhikrIndex >= _totalDhikr - 1,
-                    onNext: _nextDhikr,
+                    isLast: _currentIndex >= _total - 1,
+                    onNext: _goNext,
                   )
-                : SlideTransition(
-                    position: _slideAnim,
-                    child: _DhikrCounterCard(
-                      dhikr: _currentDhikr,
-                      count: _count,
-                      target: _customTarget,
-                      pulseAnim: _pulseAnim,
-                      onTap: _onTap,
-                      dhikrIndex: _currentDhikrIndex,
-                      totalDhikr: _totalDhikr,
-                    ),
+                : _Counter(
+                    dhikr: _current,
+                    count: _count,
+                    target: _customTarget,
+                    pulseAnim: _pulseAnim,
+                    onTap: _onTap,
+                    index: _currentIndex,
+                    total: _total,
                   ),
           ),
         ],
@@ -230,98 +221,90 @@ class _JourneyScreenState extends State<JourneyScreen>
   }
 }
 
-// ===== شريط تقدم الرحلة =====
-class _JourneyProgressBar extends StatelessWidget {
+// ===== شريط التقدم =====
+class _ProgressBar extends StatelessWidget {
   final double progress;
   final int current;
   final int total;
-  const _JourneyProgressBar({required this.progress, required this.current, required this.total});
+  const _ProgressBar({required this.progress, required this.current, required this.total});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       color: AppTheme.cardColor,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('🗺️ رحلة الذكر', style: const TextStyle(color: AppTheme.accentGold, fontSize: 12, fontWeight: FontWeight.bold)),
-              Text('$current / $total', style: const TextStyle(color: AppTheme.accentGreen, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: progress,
-              backgroundColor: AppTheme.borderColor,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                Color.lerp(AppTheme.accentGreen, AppTheme.accentGold, progress)!,
-              ),
-              minHeight: 10,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      child: Column(children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('🗺️ رحلة الذكر',
+                style: TextStyle(color: AppTheme.accentGold, fontSize: 12, fontWeight: FontWeight.bold)),
+            Text('$current / $total',
+                style: const TextStyle(color: AppTheme.accentGreen, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: progress,
+            backgroundColor: AppTheme.borderColor,
+            valueColor: AlwaysStoppedAnimation(
+              Color.lerp(AppTheme.accentGreen, AppTheme.accentGold, progress)!,
             ),
+            minHeight: 10,
           ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
 }
 
 // ===== مؤشرات الخطوات =====
-class _StepsIndicator extends StatelessWidget {
+class _Steps extends StatelessWidget {
   final int total;
   final int current;
-  final List<int> completed;
-  const _StepsIndicator({required this.total, required this.current, required this.completed});
+  const _Steps({required this.total, required this.current});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(total, (i) {
-          final isCompleted = i < current;
-          final isCurrent = i == current;
+          final done = i < current;
+          final active = i == current;
           return Flexible(
-            child: Row(
-              children: [
-                Container(
-                  width: isCurrent ? 32 : 24,
-                  height: isCurrent ? 32 : 24,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isCompleted
-                        ? AppTheme.accentGreen
-                        : isCurrent
-                            ? AppTheme.accentGold
-                            : AppTheme.borderColor,
-                    boxShadow: isCurrent
-                        ? [BoxShadow(color: AppTheme.accentGold.withOpacity(0.5), blurRadius: 8, spreadRadius: 2)]
-                        : null,
-                  ),
-                  child: Center(
-                    child: isCompleted
-                        ? const Icon(Icons.check, color: Colors.white, size: 14)
-                        : Text('${i + 1}',
-                            style: TextStyle(
-                              color: isCurrent ? Colors.white : AppTheme.textSecondary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            )),
+            child: Row(children: [
+              Container(
+                width: active ? 30 : 22,
+                height: active ? 30 : 22,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: done ? AppTheme.accentGreen : active ? AppTheme.accentGold : AppTheme.borderColor,
+                  boxShadow: active
+                      ? [BoxShadow(color: AppTheme.accentGold.withOpacity(0.5), blurRadius: 8, spreadRadius: 2)]
+                      : null,
+                ),
+                child: Center(
+                  child: done
+                      ? const Icon(Icons.check, color: Colors.white, size: 13)
+                      : Text('${i + 1}',
+                          style: TextStyle(
+                            color: active ? Colors.white : AppTheme.textSecondary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          )),
+                ),
+              ),
+              if (i < total - 1)
+                Expanded(
+                  child: Container(
+                    height: 2,
+                    color: i < current ? AppTheme.accentGreen : AppTheme.borderColor,
                   ),
                 ),
-                if (i < total - 1)
-                  Expanded(
-                    child: Container(
-                      height: 2,
-                      color: i < current ? AppTheme.accentGreen : AppTheme.borderColor,
-                    ),
-                  ),
-              ],
-            ),
+            ]),
           );
         }),
       ),
@@ -329,153 +312,133 @@ class _StepsIndicator extends StatelessWidget {
   }
 }
 
-// ===== بطاقة عداد الذكر =====
-class _DhikrCounterCard extends StatelessWidget {
+// ===== عداد الذكر =====
+class _Counter extends StatelessWidget {
   final DhikrItem dhikr;
   final int count;
   final int target;
   final Animation<double> pulseAnim;
   final VoidCallback onTap;
-  final int dhikrIndex;
-  final int totalDhikr;
-
-  const _DhikrCounterCard({
+  final int index;
+  final int total;
+  const _Counter({
     required this.dhikr, required this.count, required this.target,
     required this.pulseAnim, required this.onTap,
-    required this.dhikrIndex, required this.totalDhikr,
+    required this.index, required this.total,
   });
 
   @override
   Widget build(BuildContext context) {
-    final progress = count / target;
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // رقم الذكر
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTheme.accentGold.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.accentGold.withOpacity(0.4)),
-            ),
-            child: Text(
-              'الذكر ${dhikrIndex + 1} من $totalDhikr',
-              style: const TextStyle(color: AppTheme.accentGold, fontSize: 12),
+      child: Column(children: [
+        // ترقيم الذكر
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.accentGold.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppTheme.accentGold.withOpacity(0.4)),
+          ),
+          child: Text('الذكر ${index + 1} من $total',
+              style: const TextStyle(color: AppTheme.accentGold, fontSize: 12)),
+        ),
+        const SizedBox(height: 12),
+
+        // نص الذكر
+        Expanded(
+          child: SingleChildScrollView(
+            child: Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: AppTheme.cardColor,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppTheme.accentGreen.withOpacity(0.25)),
+              ),
+              child: Column(children: [
+                Text(dhikr.arabic,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        color: AppTheme.textPrimary, fontSize: 19, height: 1.9)),
+                if (dhikr.source != null) ...[
+                  const SizedBox(height: 6),
+                  Text('📖 ${dhikr.source}',
+                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
+                ],
+                if (dhikr.virtue != null) ...[
+                  const SizedBox(height: 6),
+                  Text('✨ ${dhikr.virtue}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AppTheme.accentGold, fontSize: 11)),
+                ],
+              ]),
             ),
           ),
-          const SizedBox(height: 16),
+        ),
+        const SizedBox(height: 14),
 
-          // نص الذكر
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [AppTheme.cardColor, AppTheme.card2Color],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppTheme.accentGreen.withOpacity(0.3)),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          dhikr.arabic,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: AppTheme.textPrimary, fontSize: 20, height: 2.0,
-                          ),
-                        ),
-                        if (dhikr.source != null) ...[
-                          const SizedBox(height: 8),
-                          Text('📖 ${dhikr.source}',
-                              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-                        ],
-                        if (dhikr.virtue != null) ...[
-                          const SizedBox(height: 8),
-                          Text('✨ ${dhikr.virtue}',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(color: AppTheme.accentGold, fontSize: 12)),
-                        ],
-                      ],
-                    ),
+        // شريط تقدم الذكر الحالي
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: count / target,
+            backgroundColor: AppTheme.borderColor,
+            color: AppTheme.accentGreen,
+            minHeight: 6,
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // زر العد
+        GestureDetector(
+          onTap: onTap,
+          child: ScaleTransition(
+            scale: pulseAnim,
+            child: Container(
+              width: 155,
+              height: 155,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [AppTheme.accentGreen, AppTheme.accentGreen.withOpacity(0.75)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.accentGreen.withOpacity(0.4),
+                    blurRadius: 24, spreadRadius: 4,
                   ),
+                ],
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('$count',
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 52, fontWeight: FontWeight.bold)),
+                  Text('من $target',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12)),
                 ],
               ),
             ),
           ),
-
-          const SizedBox(height: 16),
-
-          // شريط تقدم الذكر الحالي
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progress,
-              backgroundColor: AppTheme.borderColor,
-              color: AppTheme.accentGreen,
-              minHeight: 6,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // زر العد
-          GestureDetector(
-            onTap: onTap,
-            child: ScaleTransition(
-              scale: pulseAnim,
-              child: Container(
-                width: 160,
-                height: 160,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [AppTheme.accentGreen, AppTheme.accentGreen.withOpacity(0.7)],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.accentGreen.withOpacity(0.4),
-                      blurRadius: 25, spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('$count',
-                        style: const TextStyle(color: Colors.white, fontSize: 52, fontWeight: FontWeight.bold)),
-                    Text('من $target',
-                        style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text('اضغط للتسبيح',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-          const SizedBox(height: 12),
-        ],
-      ),
+        ),
+        const SizedBox(height: 10),
+        const Text('اضغط للتسبيح',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
+        const SizedBox(height: 8),
+      ]),
     );
   }
 }
 
 // ===== بطاقة إتمام الذكر =====
-class _DhikrCompletionCard extends StatelessWidget {
+class _MiniCompletion extends StatelessWidget {
   final DhikrItem dhikr;
   final int points;
   final Animation<double> celebrateAnim;
   final bool isLast;
   final VoidCallback onNext;
-
-  const _DhikrCompletionCard({
+  const _MiniCompletion({
     required this.dhikr, required this.points, required this.celebrateAnim,
     required this.isLast, required this.onNext,
   });
@@ -485,9 +448,9 @@ class _DhikrCompletionCard extends StatelessWidget {
     return ScaleTransition(
       scale: celebrateAnim,
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         child: Container(
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF1E2E1A), Color(0xFF2A3E24)],
@@ -495,63 +458,55 @@ class _DhikrCompletionCard extends StatelessWidget {
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppTheme.accentGreen.withOpacity(0.5), width: 2),
+            border: Border.all(color: AppTheme.accentGreen.withOpacity(0.6), width: 2),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.accentGreen.withOpacity(0.2),
-                blurRadius: 20, spreadRadius: 5,
-              ),
+                  color: AppTheme.accentGreen.withOpacity(0.2), blurRadius: 20, spreadRadius: 4),
             ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('✅', style: TextStyle(fontSize: 60)),
-              const SizedBox(height: 16),
-              Text(
-                dhikr.meaning,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppTheme.accentGreen, fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'أتممت ${dhikr.count} مرة',
-                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
+              const Text('✅', style: TextStyle(fontSize: 56)),
+              const SizedBox(height: 12),
+              Text(dhikr.meaning,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: AppTheme.accentGreen, fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              Text('أتممت $points مرة',
+                  style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15)),
+              const SizedBox(height: 10),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
                 decoration: BoxDecoration(
                   color: AppTheme.accentGold.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: AppTheme.accentGold.withOpacity(0.4)),
                 ),
-                child: Text(
-                  '⭐ +$points نقطة',
-                  style: const TextStyle(color: AppTheme.accentGold, fontWeight: FontWeight.bold),
-                ),
+                child: Text('⭐ +$points نقطة',
+                    style: const TextStyle(color: AppTheme.accentGold, fontWeight: FontWeight.bold)),
               ),
               if (dhikr.virtue != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  '✨ ${dhikr.virtue}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppTheme.accentGold, fontSize: 12),
-                ),
+                const SizedBox(height: 10),
+                Text('✨ ${dhikr.virtue}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppTheme.accentGold, fontSize: 11)),
               ],
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     backgroundColor: isLast ? AppTheme.accentGold : AppTheme.accentGreen,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   onPressed: onNext,
                   child: Text(
-                    isLast ? '🏆 إنهاء الرحلة' : 'التالي ←',
-                    style: const TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
+                    isLast ? '🏆 إنهاء الرحلة' : 'الذكر التالي ←',
+                    style: const TextStyle(
+                        fontSize: 17, color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -563,16 +518,17 @@ class _DhikrCompletionCard extends StatelessWidget {
   }
 }
 
-// ===== شاشة إتمام الرحلة كاملة =====
-class _JourneyCompleteScreen extends StatelessWidget {
+// ===== شاشة إتمام الرحلة =====
+class _JourneyComplete extends StatelessWidget {
   final String categoryName;
+  final String categoryIcon;
   final int totalPoints;
   final int totalDhikr;
   final VoidCallback onRestart;
 
-  const _JourneyCompleteScreen({
-    required this.categoryName, required this.totalPoints,
-    required this.totalDhikr, required this.onRestart,
+  const _JourneyComplete({
+    required this.categoryName, required this.categoryIcon,
+    required this.totalPoints, required this.totalDhikr, required this.onRestart,
   });
 
   @override
@@ -582,29 +538,21 @@ class _JourneyCompleteScreen extends StatelessWidget {
       body: SafeArea(
         child: Center(
           child: Padding(
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.all(28),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // احتفال
-                const Text('🏆', style: TextStyle(fontSize: 80)),
-                const SizedBox(height: 8),
-                const Text('🎉🎉🎉', style: TextStyle(fontSize: 32)),
-                const SizedBox(height: 24),
-                Text(
-                  'أحسنت! أكملت رحلة',
-                  style: const TextStyle(color: AppTheme.textSecondary, fontSize: 16),
-                ),
-                Text(
-                  categoryName,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: AppTheme.accentGreen, fontSize: 28, fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // إحصائيات
+                Text(categoryIcon, style: const TextStyle(fontSize: 64)),
+                const Text('🏆🎉🏆', style: TextStyle(fontSize: 32)),
+                const SizedBox(height: 20),
+                const Text('ما شاء الله!',
+                    style: TextStyle(
+                        color: AppTheme.accentGold, fontSize: 14, fontWeight: FontWeight.w500)),
+                Text('أكملت رحلة $categoryName',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        color: AppTheme.accentGreen, fontSize: 26, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -615,22 +563,22 @@ class _JourneyCompleteScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _StatItem(emoji: '📿', value: '$totalDhikr', label: 'أذكار مكتملة'),
+                      _Stat('📿', '$totalDhikr', 'أذكار مكتملة'),
                       Container(width: 1, height: 50, color: AppTheme.borderColor),
-                      _StatItem(emoji: '⭐', value: '$totalPoints', label: 'نقطة مكتسبة'),
+                      _Stat('⭐', '$totalPoints', 'نقطة مكتسبة'),
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                     onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
-                    child: const Text('العودة للرئيسية', style: TextStyle(fontSize: 18)),
+                    child: const Text('العودة للرئيسية', style: TextStyle(fontSize: 17)),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -648,23 +596,21 @@ class _JourneyCompleteScreen extends StatelessWidget {
   }
 }
 
-class _StatItem extends StatelessWidget {
+class _Stat extends StatelessWidget {
   final String emoji;
   final String value;
   final String label;
-  const _StatItem({required this.emoji, required this.value, required this.label});
+  const _Stat(this.emoji, this.value, this.label);
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 28)),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(
-          color: AppTheme.accentGold, fontSize: 24, fontWeight: FontWeight.bold,
-        )),
-        Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
-      ],
-    );
+    return Column(children: [
+      Text(emoji, style: const TextStyle(fontSize: 26)),
+      const SizedBox(height: 4),
+      Text(value,
+          style: const TextStyle(
+              color: AppTheme.accentGold, fontSize: 22, fontWeight: FontWeight.bold)),
+      Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10)),
+    ]);
   }
 }

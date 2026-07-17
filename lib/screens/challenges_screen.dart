@@ -4,7 +4,7 @@ import '../theme/app_theme.dart';
 import '../models/types.dart';
 import '../services/storage_service.dart';
 import '../data/adhkar_data.dart';
-import 'tasbeeh_counter_screen.dart';
+import 'challenge_counter_screen.dart';
 
 // ===== Challenges Screen =====
 class ChallengesScreen extends StatefulWidget {
@@ -38,8 +38,8 @@ class _ChallengesScreenState extends State<ChallengesScreen> {
     return Scaffold(
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: AppTheme.accentGreen,
-        icon: const Icon(Icons.add),
-        label: const Text('تحدي جديد'),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('تحدي جديد', style: TextStyle(color: Colors.white)),
         onPressed: () => Navigator.push(context,
             MaterialPageRoute(builder: (_) => const ChallengeSetupScreen()))
             .then((_) => _load()),
@@ -110,6 +110,24 @@ class _ChallengeCard extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis),
             const SizedBox(height: 10),
+            // عرض العداد المخصص
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentGold.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.accentGold.withOpacity(0.4)),
+                  ),
+                  child: Text(
+                    'الهدف: ${challenge.targetCount} مرة',
+                    style: const TextStyle(color: AppTheme.accentGold, fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -133,16 +151,12 @@ class _ChallengeCard extends StatelessWidget {
               ElevatedButton.icon(
                 icon: const Icon(Icons.touch_app, size: 16),
                 label: const Text('متابعة التحدي'),
-                onPressed: () {
-                  final allDhikr = AdhkarData.categories.expand((c) => c.adhkar).toList();
-                  final dhikr = allDhikr.firstWhere(
-                    (d) => d.id == challenge.dhikrId,
-                    orElse: () => allDhikr.first,
-                  );
-                  Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => TasbeehCounterScreen(dhikr: dhikr)))
-                    .then((_) => onRefresh());
-                },
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChallengeCounterScreen(challenge: challenge),
+                  ),
+                ).then((_) => onRefresh()),
               ),
             ],
           ],
@@ -162,7 +176,7 @@ class ChallengeSetupScreen extends StatefulWidget {
 
 class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
   final _nameCtrl = TextEditingController();
-  final _targetCtrl = TextEditingController(text: '100');
+  final _targetCtrl = TextEditingController(text: '33');
   DhikrItem? _selectedDhikr;
 
   final _allDhikr = AdhkarData.categories.expand((c) => c.adhkar).toList();
@@ -178,13 +192,20 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
         const SnackBar(content: Text('اختر ذكراً')));
       return;
     }
-    final target = int.tryParse(_targetCtrl.text) ?? 100;
+    // العداد المخصص — مش عدد الذكر الأصلي
+    final target = int.tryParse(_targetCtrl.text) ?? 33;
+    if (target <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('أدخل عدداً صحيحاً')));
+      return;
+    }
+
     await StorageService.addChallenge(DailyChallenge(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       name: _nameCtrl.text.trim(),
       dhikrId: _selectedDhikr!.id,
       dhikrText: _selectedDhikr!.arabic,
-      targetCount: target,
+      targetCount: target, // العداد المخصص للتحدي
       createdAt: DateTime.now().toIso8601String(),
     ));
     if (context.mounted) Navigator.pop(context);
@@ -196,7 +217,10 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
       appBar: AppBar(
         title: const Text('تحدي جديد'),
         actions: [
-          TextButton(onPressed: _save, child: const Text('حفظ', style: TextStyle(color: AppTheme.accentGreen))),
+          TextButton(
+            onPressed: _save,
+            child: const Text('حفظ', style: TextStyle(color: AppTheme.accentGreen, fontSize: 16)),
+          ),
         ],
       ),
       body: Column(
@@ -206,9 +230,59 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildTextField(_nameCtrl, 'اسم التحدي', 'مثال: استغفار اليوم'),
+                _buildField(_nameCtrl, 'اسم التحدي', 'مثال: استغفار اليوم'),
                 const SizedBox(height: 12),
-                _buildTextField(_targetCtrl, 'العدد المطلوب', '100', isNumber: true),
+                // العداد المخصص
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text('عدد المرات المطلوبة في التحدي',
+                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _targetCtrl,
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            style: const TextStyle(color: AppTheme.textPrimary, fontSize: 18),
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: AppTheme.cardColor,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // أزرار سريعة
+                        Wrap(
+                          spacing: 4,
+                          children: [10, 33, 100, 500].map((n) =>
+                            GestureDetector(
+                              onTap: () => setState(() => _targetCtrl.text = '$n'),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.accentGreen.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppTheme.accentGreen.withOpacity(0.4)),
+                                ),
+                                child: Text('$n', style: const TextStyle(color: AppTheme.accentGreen, fontSize: 12)),
+                              ),
+                            ),
+                          ).toList(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text('* هذا هو عدد مرات التحدي، مستقل عن عدد الذكر الأصلي',
+                        style: TextStyle(color: AppTheme.accentGold, fontSize: 11)),
+                  ],
+                ),
               ],
             ),
           ),
@@ -220,6 +294,7 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
                   style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
             ),
           ),
+          const SizedBox(height: 8),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -231,15 +306,15 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
                   color: isSelected ? AppTheme.accentGreen.withOpacity(0.15) : AppTheme.cardColor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
-                    side: BorderSide(
-                      color: isSelected ? AppTheme.accentGreen : Colors.transparent,
-                    ),
+                    side: BorderSide(color: isSelected ? AppTheme.accentGreen : Colors.transparent),
                   ),
                   child: ListTile(
                     title: Text(d.arabic,
                         style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis),
+                    subtitle: Text(d.meaning,
+                        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
                     onTap: () => setState(() => _selectedDhikr = d),
                     trailing: isSelected
                         ? const Icon(Icons.check_circle, color: AppTheme.accentGreen)
@@ -254,7 +329,7 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController ctrl, String label, String hint, {bool isNumber = false}) {
+  Widget _buildField(TextEditingController ctrl, String label, String hint) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -263,14 +338,16 @@ class _ChallengeSetupScreenState extends State<ChallengeSetupScreen> {
         TextField(
           controller: ctrl,
           textAlign: TextAlign.right,
-          keyboardType: isNumber ? TextInputType.number : TextInputType.text,
           style: const TextStyle(color: AppTheme.textPrimary),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: AppTheme.textSecondary),
             filled: true,
             fillColor: AppTheme.cardColor,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
       ],
