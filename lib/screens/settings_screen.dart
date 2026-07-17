@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
@@ -50,22 +50,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _toggleNotifications(bool value) async {
     if (value) {
       await NotificationService.init();
-      final granted = await NotificationService.requestPermissions();
-      if (!granted && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('❌ لم يتم منح إذن الإشعارات — فعّله من إعدادات الهاتف'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
       await NotificationService.scheduleMorningReminder(_morningTime);
       await NotificationService.scheduleEveningReminder(_eveningTime);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ تم تفعيل الإشعارات'),
+            content: Text('âœ… طھظ… طھظپط¹ظٹظ„ ط§ظ„ط¥ط´ط¹ط§ط±ط§طھ'),
             backgroundColor: Color(0xFF6B8F3E),
           ),
         );
@@ -105,7 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('✅ تم تحديث وقت الإشعار إلى $formatted')),
+        SnackBar(content: Text('âœ… طھظ… طھط­ط¯ظٹط« ظˆظ‚طھ ط§ظ„ط¥ط´ط¹ط§ط± ط¥ظ„ظ‰ $formatted')),
       );
     }
   }
@@ -114,32 +104,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final val = int.tryParse(_goalCtrl.text);
     if (val == null || val <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('أدخل رقماً صحيحاً')));
+        const SnackBar(content: Text('ط£ط¯ط®ظ„ ط±ظ‚ظ…ط§ظ‹ طµط­ظٹط­ط§ظ‹')));
       return;
     }
     await StorageService.setDailyGoal(val);
     setState(() => _dailyGoal = val);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('✅ تم حفظ الهدف'), backgroundColor: Color(0xFF6B8F3E)),
+      const SnackBar(content: Text('âœ… طھظ… ط­ظپط¸ ط§ظ„ظ‡ط¯ظپ'), backgroundColor: Color(0xFF6B8F3E)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('الإعدادات ⚙️')),
+      appBar: AppBar(title: const Text('ط§ظ„ط¥ط¹ط¯ط§ط¯ط§طھ âڑ™ï¸ڈ')),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          // ===== الهدف اليومي =====
-          _Section('🎯 الهدف اليومي'),
+          // ===== ط§ظ„ظ‡ط¯ظپ ط§ظ„ظٹظˆظ…ظٹ =====
+          _Section('ًںژ¯ ط§ظ„ظ‡ط¯ظپ ط§ظ„ظٹظˆظ…ظٹ'),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('عدد الأذكار اليومية المطلوبة',
+                  const Text('ط¹ط¯ط¯ ط§ظ„ط£ط°ظƒط§ط± ط§ظ„ظٹظˆظ…ظٹط© ط§ظ„ظ…ط·ظ„ظˆط¨ط©',
                       style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
                   const SizedBox(height: 8),
                   Row(children: [
@@ -165,7 +155,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    ElevatedButton(onPressed: _saveGoal, child: const Text('حفظ')),
+                    ElevatedButton(onPressed: _saveGoal, child: const Text('ط­ظپط¸')),
                   ]),
                   const SizedBox(height: 8),
                   Wrap(
@@ -187,13 +177,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
-          // ===== الاهتزاز =====
-          _Section('📳 الاهتزاز'),
+          // ===== ط§ظ„ط§ظ‡طھط²ط§ط² =====
+          _Section('ًں“³ ط§ظ„ط§ظ‡طھط²ط§ط²'),
           Card(
             child: SwitchListTile(
-              title: const Text('تفعيل الاهتزاز',
+              title: const Text('طھظپط¹ظٹظ„ ط§ظ„ط§ظ‡طھط²ط§ط²',
                   style: TextStyle(color: AppTheme.textPrimary)),
-              subtitle: const Text('اهتزاز خفيف عند كل تسبيحة',
+              subtitle: const Text('ط§ظ‡طھط²ط§ط² ط®ظپظٹظپ ط¹ظ†ط¯ ظƒظ„ طھط³ط¨ظٹط­ط©',
                   style: TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
               value: _hapticEnabled,
               onChanged: (v) async {
@@ -203,24 +193,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
-          // ===== الإشعارات =====
-          _Section('🔔 الإشعارات'),
+          // ===== ط§ظ„ط¥ط´ط¹ط§ط±ط§طھ =====
+          _Section('ًں”” ط§ظ„ط¥ط´ط¹ط§ط±ط§طھ'),
           Card(
             child: Column(children: [
               SwitchListTile(
-                title: const Text('تفعيل إشعارات الأذكار',
+                title: const Text('طھظپط¹ظٹظ„ ط¥ط´ط¹ط§ط±ط§طھ ط§ظ„ط£ط°ظƒط§ط±',
                     style: TextStyle(color: AppTheme.textPrimary)),
-                subtitle: const Text('تذكيرات يومية بأذكار الصباح والمساء',
+                subtitle: const Text('طھط°ظƒظٹط±ط§طھ ظٹظˆظ…ظٹط© ط¨ط£ط°ظƒط§ط± ط§ظ„طµط¨ط§ط­ ظˆط§ظ„ظ…ط³ط§ط،',
                     style: TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
                 value: _notifEnabled,
                 onChanged: _toggleNotifications,
               ),
               if (_notifEnabled) ...[
                 const Divider(color: AppTheme.borderColor, height: 1),
-                // وقت الصباح
+                // ظˆظ‚طھ ط§ظ„طµط¨ط§ط­
                 ListTile(
-                  leading: const Text('🌅', style: TextStyle(fontSize: 22)),
-                  title: const Text('إشعار الصباح',
+                  leading: const Text('ًںŒ…', style: TextStyle(fontSize: 22)),
+                  title: const Text('ط¥ط´ط¹ط§ط± ط§ظ„طµط¨ط§ط­',
                       style: TextStyle(color: AppTheme.textPrimary)),
                   trailing: GestureDetector(
                     onTap: () => _pickTime(true),
@@ -239,10 +229,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () => _pickTime(true),
                 ),
                 const Divider(color: AppTheme.borderColor, height: 1),
-                // وقت المساء
+                // ظˆظ‚طھ ط§ظ„ظ…ط³ط§ط،
                 ListTile(
-                  leading: const Text('🌇', style: TextStyle(fontSize: 22)),
-                  title: const Text('إشعار المساء',
+                  leading: const Text('ًںŒ‡', style: TextStyle(fontSize: 22)),
+                  title: const Text('ط¥ط´ط¹ط§ط± ط§ظ„ظ…ط³ط§ط،',
                       style: TextStyle(color: AppTheme.textPrimary)),
                   trailing: GestureDetector(
                     onTap: () => _pickTime(false),
@@ -261,12 +251,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () => _pickTime(false),
                 ),
                 const Divider(color: AppTheme.borderColor, height: 1),
-                // زر اختبار
+                // ط²ط± ط§ط®طھط¨ط§ط±
                 Padding(
                   padding: const EdgeInsets.all(12),
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.notifications_active),
-                    label: const Text('إرسال إشعار تجريبي الآن'),
+                    label: const Text('ط¥ط±ط³ط§ظ„ ط¥ط´ط¹ط§ط± طھط¬ط±ظٹط¨ظٹ ط§ظ„ط¢ظ†'),
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size(double.infinity, 46),
                     ),
@@ -276,7 +266,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('📳 تم إرسال إشعار تجريبي — تحقق من شريط الإشعارات'),
+                            content: Text('ًں“³ طھظ… ط¥ط±ط³ط§ظ„ ط¥ط´ط¹ط§ط± طھط¬ط±ظٹط¨ظٹ â€” طھط­ظ‚ظ‚ ظ…ظ† ط´ط±ظٹط· ط§ظ„ط¥ط´ط¹ط§ط±ط§طھ'),
                             backgroundColor: Color(0xFF6B8F3E),
                           ),
                         );
@@ -288,8 +278,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ]),
           ),
 
-          // ===== معلومات =====
-          _Section('ℹ️ عن التطبيق'),
+          // ===== ظ…ط¹ظ„ظˆظ…ط§طھ =====
+          _Section('â„¹ï¸ڈ ط¹ظ† ط§ظ„طھط·ط¨ظٹظ‚'),
           Card(
             child: const Padding(
               padding: EdgeInsets.all(16),
@@ -298,11 +288,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: TextStyle(
                         color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
                 SizedBox(height: 4),
-                Text('الإصدار 2.0.0',
+                Text('ط§ظ„ط¥طµط¯ط§ط± 2.0.0',
                     style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
                 SizedBox(height: 8),
                 Text(
-                  'تطبيق إسلامي شامل للأذكار والتسبيح\nمع وضع الرحلة والإشعارات اليومية',
+                  'طھط·ط¨ظٹظ‚ ط¥ط³ظ„ط§ظ…ظٹ ط´ط§ظ…ظ„ ظ„ظ„ط£ط°ظƒط§ط± ظˆط§ظ„طھط³ط¨ظٹط­\nظ…ط¹ ظˆط¶ط¹ ط§ظ„ط±ط­ظ„ط© ظˆط§ظ„ط¥ط´ط¹ط§ط±ط§طھ ط§ظ„ظٹظˆظ…ظٹط©',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                 ),
@@ -330,3 +320,4 @@ class _Section extends StatelessWidget {
     );
   }
 }
+
