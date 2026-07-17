@@ -9,25 +9,10 @@ class NotificationService {
   static Future<void> init() async {
     if (_initialized) return;
     tz.initializeTimeZones();
-    try {
-      tz.setLocalLocation(tz.getLocation('Africa/Cairo'));
-    } catch (_) {}
-
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const ios = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+    const ios = DarwinInitializationSettings();
     await _plugin.initialize(const InitializationSettings(android: android, iOS: ios));
     _initialized = true;
-  }
-
-  static Future<bool> requestPermissions() async {
-    final android = _plugin.resolvePlatformSpecificImplementation
-        AndroidFlutterLocalNotificationsPlugin>();
-    final granted = await android?.requestNotificationsPermission();
-    return granted ?? false;
   }
 
   static Future<void> scheduleMorningReminder(String time) async {
@@ -36,15 +21,13 @@ class NotificationService {
     await _plugin.zonedSchedule(
       1,
       '?? √–ﬂ«— «·’»«Õ',
-      '«»œ√ ÌÊ„ﬂ »–ﬂ— «··Â ó ·«  ‰”Û √–ﬂ«— «·’»«Õ',
+      '«»œ√ ÌÊ„ﬂ »–ﬂ— «··Â',
       _nextTime(int.parse(parts[0]), int.parse(parts[1])),
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'morning_channel', '√–ﬂ«— «·’»«Õ',
-          channelDescription: ' –ﬂÌ— ÌÊ„Ì »√–ﬂ«— «·’»«Õ',
           importance: Importance.high,
           priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -60,15 +43,13 @@ class NotificationService {
     await _plugin.zonedSchedule(
       2,
       '?? √–ﬂ«— «·„”«¡',
-      'Õ«‰ Êﬁ  √–ﬂ«— «·„”«¡ ó «Œ „ ÌÊ„ﬂ »–ﬂ— «··Â',
+      'Õ«‰ Êﬁ  √–ﬂ«— «·„”«¡',
       _nextTime(int.parse(parts[0]), int.parse(parts[1])),
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'evening_channel', '√–ﬂ«— «·„”«¡',
-          channelDescription: ' –ﬂÌ— ÌÊ„Ì »√–ﬂ«— «·„”«¡',
           importance: Importance.high,
           priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -81,14 +62,13 @@ class NotificationService {
   static Future<void> showTestNotification() async {
     await _plugin.show(
       99,
-      '?? «Œ »«— «·≈‘⁄«—« ',
-      '«·≈‘⁄«—«   ⁄„· »‘ﬂ· ’ÕÌÕ ?',
+      '?? «Œ »«—',
+      '«·≈‘⁄«—«   ⁄„· ?',
       const NotificationDetails(
         android: AndroidNotificationDetails(
-          'test_channel', '≈‘⁄«—«   Ã—Ì»Ì…',
+          'test_channel', ' Ã—Ì»Ì',
           importance: Importance.high,
           priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
         ),
       ),
     );
@@ -97,14 +77,13 @@ class NotificationService {
   static Future<void> showGoalCompletedNotification() async {
     await _plugin.show(
       100,
-      '?? √Õ”‰ ! √ﬂ„·  Âœ›ﬂ «·ÌÊ„Ì',
-      '»«—ﬂ «··Â ›Ìﬂ ⁄·Ï „Ê«Ÿ» ﬂ ⁄·Ï –ﬂ— «··Â',
+      '?? √ﬂ„·  Âœ›ﬂ «·ÌÊ„Ì',
+      '»«—ﬂ «··Â ›Ìﬂ',
       const NotificationDetails(
         android: AndroidNotificationDetails(
           'goal_channel', '≈ „«„ «·Âœ›',
           importance: Importance.high,
           priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
         ),
       ),
     );
