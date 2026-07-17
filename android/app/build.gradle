@@ -26,7 +26,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.dhikr_app"
-        minSdk 21
+        minSdkVersion flutter.minSdkVersion
         targetSdk 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
